@@ -37,6 +37,8 @@ Reward hacking occurs when reinforcement learning from human feedback (RLHF) imp
 \end{abstract}
 \noindent\textbf{Keywords:} RLHF, reward hacking, reward models, PPO, uncertainty, DPO, LLM-as-judge\par\vspace{0.75em}
 \noindent\textit{Author note:} The author is an AI/ML Senior Model Risk Management Analyst (VP) at First Citizens Bank and a PhD candidate in Applied AI at Alma Mater Europaea University, Vienna, Austria. The views expressed in this paper are those of the author and do not represent the views of First Citizens Bank.\par\vspace{0.75em}
+\noindent\textit{Code and artifact availability:} The curated code, paper source, figures, tables, selected qualitative examples, and reproducibility notes are available at \url{https://github.com/zabahana/reward-hacking-upppo-rlhf}. The repository is private at submission time; access can be granted by the author for review and collaboration. Large trained checkpoints and private API keys are excluded from the repository and can be regenerated from the documented pipeline.\par\vspace{0.75em}
+
 
 
 \section{Introduction}
@@ -455,6 +457,10 @@ The diagnostic tables sharpen the main claim. Positive KL penalties mitigate muc
 DPO plays a clarifying role. Because DPO does not conduct on-policy reward-model maximization, it does not serve as the reward-hacking stress test. Instead, it functions as a stability baseline. Its inclusion helps attribute the observed hacking pattern to PPO-style online proxy optimization rather than to preference learning itself.
 
 
+
+
+\section{Code, Data, and Artifact Availability}
+The publication repository is available at \url{https://github.com/zabahana/reward-hacking-upppo-rlhf}. It contains the manuscript source and PDF, publication figures, compact result tables, selected qualitative examples, reproducibility notes, and the RLHF pipeline source code used to generate the reported analyses. The repository is private at submission time and can be shared with reviewers or collaborators by granting GitHub access. To avoid exposing credentials or unnecessarily large binary files, API keys, virtual environments, and trained model checkpoints are not committed; the documented pipeline and configuration files support regeneration of model artifacts and rollout results.
 
 \section{Limitations}
 The limitations are primarily methodological. The MC-dropout ablation, mechanism diagnostics, diversity controls, and paired tests are performed on fixed generated rollouts from one stress-test run; they do not retrain reward models or policies under different dropout settings. The mined-row mitigation test is selection-aware and does not use a separately mined held-out candidate set. Reward-model ensembles remain an important uncertainty baseline. The stress-test results are from seed 42, so multi-seed error bars are required for population-level estimates. The KL comparison establishes tuned positive KL penalties as strong baselines, although the available KL runs are not a fully matched adaptive-KL comparison. Finally, output length, repetition, and lexical diversity are reported, while entropy, toxicity, and stylistic diversity require broader measurement. A larger study should combine multi-seed training, larger evaluation sets, human review of mined examples, ensemble uncertainty, and adaptive KL baselines.
