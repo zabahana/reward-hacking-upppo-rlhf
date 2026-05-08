@@ -24,7 +24,10 @@
 \definecolor{SoftGray}{HTML}{F2F2F2}
 \definecolor{DPOgreen}{HTML}{54A24B}
 \title{Reward Hacking in RLHF:\\Detection and Mitigation with Uncertainty-Penalized PPO}
-\author{Zelalem Abahana\\Alma Mater Europaea University, Vienna\\\texttt{zelalem.abahana@almamater.si}}
+\author{Zelalem Abahana\\
+AI/ML Senior Model Risk Management Analyst (VP), First Citizens Bank\\
+PhD Candidate in Applied AI, Alma Mater Europaea University, Vienna, Austria\\
+\texttt{zelalem.abahana@almamater.si}}
 \begin{document}
 \maketitle
 \thispagestyle{plain}
@@ -33,6 +36,8 @@
 Reward hacking occurs when reinforcement learning from human feedback (RLHF) improves a learned reward proxy while reducing externally judged response quality. This paper studies that failure mode in a compact RLHF pipeline with supervised fine-tuning, reward-model training, PPO, uncertainty-penalized PPO (UP-PPO), DPO, and two independent LLM judges. Under an aggressive zero-KL PPO stress test, the learned reward improves from $-0.734$ at step 1000 to $-0.657$ at step 1200, while the two-judge mean falls from $2.988$ to $2.754$. Row-level mining identifies 16 of 64 prompts with proxy improvement and judge degradation. On these mined failures, UP-PPO with $\lambda=0.1$ reduces proxy reward by $0.349$ while improving Anthropic by $0.438$, OpenAI by $0.188$, and the two-judge mean by $0.313$. Additional diagnostics show that KL regularization is a strong baseline, MC-dropout uncertainty is a weak but useful proxy-reliability signal, and validation-based checkpoint selection remains essential. The results provide a concrete reward-hacking regime and evidence that uncertainty-aware reward optimization can partially mitigate proxy overoptimization.
 \end{abstract}
 \noindent\textbf{Keywords:} RLHF, reward hacking, reward models, PPO, uncertainty, DPO, LLM-as-judge\par\vspace{0.75em}
+\noindent\textit{Author note:} The author is an AI/ML Senior Model Risk Management Analyst (VP) at First Citizens Bank and a PhD candidate in Applied AI at Alma Mater Europaea University, Vienna, Austria. The views expressed in this paper are those of the author and do not represent the views of First Citizens Bank.\par\vspace{0.75em}
+
 
 \section{Introduction}
 RLHF systems optimize policies using learned reward models trained from preference data. Christiano et al. introduced preference-based deep reinforcement learning as a scalable alternative to hand-coded rewards \cite{christiano2017deep}, and Ziegler et al. and Stiennon et al. showed how this paradigm can fine-tune language models from human preferences \cite{ziegler2019fine,stiennon2020learning}. Ouyang et al. and Bai et al. then demonstrated that RLHF can substantially improve instruction following and assistant behavior at scale \cite{ouyang2022training,bai2022training}. The central methodological risk, however, is that the reward model is not the objective itself. It is a proxy.
