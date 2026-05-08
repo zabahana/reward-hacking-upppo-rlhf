@@ -1,0 +1,2 @@
+n,mean_delta_u,median_delta_u,rows_u_decreased,mean_delta_R_phi,mean_delta_judge_avg,pearson_delta_u_delta_judge,pearson_p,spearman_delta_u_delta_judge,spearman_p
+16,0.024006624917473147,-0.017427747165826277,9,-0.34899345864193004,0.3125,-0.07494618217582862,0.7826599189281163,0.010806896736135548,0.9683149102611603

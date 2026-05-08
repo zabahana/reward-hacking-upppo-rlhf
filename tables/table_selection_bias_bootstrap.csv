@@ -1,0 +1,2 @@
+n,mean_delta_judge_avg,bootstrap_ci_low,bootstrap_ci_high,split_half_mean_abs_difference,split_half_p95_abs_difference
+16,0.3125,-0.0625,0.65625,0.29982517482517484,0.75

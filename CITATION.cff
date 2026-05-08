@@ -1,0 +1,8 @@
+cff-version: 1.2.0
+title: "Reward Hacking in RLHF: Detection and Mitigation with Uncertainty-Penalized PPO"
+authors:
+  - family-names: Abahana
+    given-names: Zelalem
+affiliation: "Alma Mater Europaea University, Vienna"
+year: 2026
+message: "If you use these artifacts, please cite the accompanying manuscript."
