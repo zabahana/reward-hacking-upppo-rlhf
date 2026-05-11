@@ -10,6 +10,33 @@
 \usepackage{authblk}
 \usepackage[table]{xcolor}
 \usepackage[most]{tcolorbox}
+\usepackage[compact]{titlesec}
+% Compact float layout for dense two-column manuscript pages.
+\setlength{\textfloatsep}{6pt plus 2pt minus 2pt}
+\setlength{\floatsep}{6pt plus 2pt minus 2pt}
+\setlength{\intextsep}{6pt plus 2pt minus 2pt}
+\setlength{\abovecaptionskip}{3pt plus 1pt minus 1pt}
+\setlength{\belowcaptionskip}{0pt plus 1pt minus 1pt}
+\renewcommand{\topfraction}{0.95}
+\renewcommand{\bottomfraction}{0.85}
+\renewcommand{\textfraction}{0.05}
+\renewcommand{\floatpagefraction}{0.85}
+\renewcommand{\dbltopfraction}{0.95}
+\renewcommand{\dblfloatpagefraction}{0.85}
+\setcounter{topnumber}{5}
+\setcounter{bottomnumber}{5}
+\setcounter{totalnumber}{10}
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{0.96}
+\titlespacing{\section}{0pt}{0.8ex plus 0.2ex minus 0.2ex}{0.45ex plus 0.1ex}
+\titlespacing{\subsection}{0pt}{0.65ex plus 0.2ex minus 0.2ex}{0.35ex plus 0.1ex}
+\titlespacing{\subsubsection}{0pt}{0.55ex plus 0.2ex minus 0.2ex}{0.25ex plus 0.1ex}
+\AtBeginDocument{%
+  \setlength{\abovedisplayskip}{5pt plus 1pt minus 1pt}%
+  \setlength{\belowdisplayskip}{5pt plus 1pt minus 1pt}%
+  \setlength{\abovedisplayshortskip}{3pt plus 1pt minus 1pt}%
+  \setlength{\belowdisplayshortskip}{3pt plus 1pt minus 1pt}%
+}
 \graphicspath{{../figures/}}
 \newcommand{\Rphi}{R_{\phi}}
 \newcommand{\Rdag}{R^{\dagger}}
@@ -30,7 +57,7 @@
 \thispagestyle{plain}
 \pagestyle{plain}
 \begin{abstract}
-Reward hacking occurs when reinforcement learning from human feedback (RLHF) improves a learned reward proxy while reducing externally judged response quality. We study this failure mode in a compact RLHF pipeline with supervised fine-tuning, reward-model training, PPO, uncertainty-penalized PPO (UP-PPO), DPO, and two independent LLM judges. Under an aggressive zero-KL PPO stress test, the reward proxy increases while the two-judge score decreases. Row-level mining identifies prompts with proxy improvement and judge degradation. On these mined failures, UP-PPO with $\lambda=0.1$ reduces suspicious proxy reward while improving both external judges. Additional diagnostics show that KL regularization is a strong baseline, MC-dropout uncertainty is a weak but useful proxy-reliability signal, and validation-based checkpoint selection remains essential. We find clear evidence of reward hacking under aggressive PPO, and show that uncertainty-penalized PPO partially mitigates reward hacking under controlled overoptimization.
+Reward hacking occurs when reinforcement learning from human feedback (RLHF) improves a learned reward proxy while reducing externally judged response quality. We study this failure mode in a compact RLHF pipeline with supervised fine-tuning, reward-model training, PPO, uncertainty-penalized PPO (UP-PPO), DPO, and two independent LLM judges. The strongest hacking signal appears in an aggressive PPO stress condition with no KL penalty: the reward proxy increases while the two-judge score decreases. Row-level mining identifies prompts with proxy improvement and judge degradation. On these mined failures, UP-PPO with $\lambda=0.1$ reduces suspicious proxy reward while improving both external judges. Additional diagnostics show that KL regularization is a strong baseline, MC-dropout uncertainty is a weak but useful proxy-reliability signal, and validation-based checkpoint selection remains essential. We find clear evidence of reward hacking under aggressive PPO, and show that uncertainty-penalized PPO partially mitigates reward hacking under controlled overoptimization. Our code is publicly available at: \url{https://github.com/zabahana/reward-hacking-upppo-rlhf}.
 \end{abstract}
 \par\smallskip\noindent{\small\textbf{Keywords:} RLHF, reward hacking, reward models, PPO, uncertainty, DPO, LLM-as-judge}\par\vspace{0.75em}
 
@@ -43,7 +70,29 @@ Reward hacking occurs when the policy learns to satisfy the proxy while external
 \begin{equation}
     \Delta \Rphi > 0 \quad \text{and} \quad \Delta \bar R^\dagger < 0,
 \end{equation}
-where $\bar R^\dagger=(\Rdag+\Rtwo)/2$ is the mean of two independent external judges. We focus on measurable proxy--judge divergence as the operational definition of reward hacking.
+where $\Rphi$ denotes the learned reward-model score and $\bar R^\dagger=(\Rdag+\Rtwo)/2$ is the mean of two independent external judges. Here $\Rdag$ is the Anthropic judge score and $\Rtwo$ is the OpenAI judge score, both reported on a 1--10 helpfulness scale. We focus on measurable proxy--judge divergence as the operational definition of reward hacking.
+
+\begin{table}[!tbp]
+\centering
+\scriptsize
+\caption{Summary of Notation}
+\label{tab:notation}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{ll}
+\toprule
+Symbol & Meaning \\
+\midrule
+$\Rphi(x,y)$ & Learned reward-model score for prompt $x$ and response $y$. \\
+$\Rdag$ & Anthropic judge helpfulness score on a 1--10 scale. \\
+$\Rtwo$ & OpenAI judge helpfulness score on a 1--10 scale. \\
+$\bar R^\dagger$ & Two-judge average, $(\Rdag+\Rtwo)/2$. \\
+$u(x,y)$ & MC-dropout uncertainty of the reward model. \\
+$\pi_0$ & SFT reference policy. \\
+$\beta_{\mathrm{KL}}$ & PPO KL-penalty coefficient. \\
+$\lambda$ & UP-PPO uncertainty-penalty coefficient. \\
+\bottomrule
+\end{tabular}}
+\end{table}
 
 The study asks three questions. First, can aggressive PPO produce a measurable reward-hacking regime in a compact RLHF pipeline? Second, can row-level analysis identify concrete high-proxy/low-judge failures? Third, does uncertainty penalization reduce those failures? We contribute: (i) a controlled reward-hacking regime under PPO, (ii) a row-level diagnostic framework for localizing proxy--judge failures, and (iii) evidence that UP-PPO partially mitigates reward hacking on mined failures.
 
@@ -59,7 +108,7 @@ Uncertainty and calibration are natural tools for diagnosing proxy unreliability
 The pipeline includes supervised fine-tuning (SFT), reward-model training, PPO, UP-PPO, DPO, rollout generation, and external judge evaluation. SFT provides the reference policy $\pi_0$. DPO is included as a preference-optimization baseline because it avoids the online loop of generating samples and maximizing $\Rphi$ against them. Thus, DPO helps distinguish reward hacking caused by PPO-style proxy optimization from general preference-training effects.
 
 \subsection{PPO Stress Test}
-To expose reward hacking, the PPO run deliberately applies strong optimization pressure: zero KL penalty, sampled generation, 96 generated tokens, learning rate $2\times 10^{-6}$, and checkpoints through step 1200. This configuration serves as a controlled stress test for reward-model overoptimization.
+To expose reward hacking, the primary PPO stress condition deliberately applies strong optimization pressure: no KL penalty, sampled generation, 96 generated tokens, learning rate $2\times 10^{-6}$, and checkpoints through step 1200. This is not the only PPO training condition: positive-KL PPO runs are trained and reported as regularized baselines. The no-KL condition serves as a controlled stress test for reward-model overoptimization.
 
 \subsection{Uncertainty-Penalized PPO}
 UP-PPO modifies the scalar reward as
@@ -78,12 +127,12 @@ Approximate KL is computed only on the sampled continuation. If $y_{1:m}$ is the
 \end{equation}
 where $\pi_0$ is the SFT reference and the same generated tokens are scored under both policies. This is a per-generated-token log-probability drift estimate, not an exact distributional KL over all possible next tokens.
 
-\begin{table*}[t]
+\begin{table}[!tbp]
 \centering
-\scriptsize
+\tiny
 \caption{Replication-relevant experimental details for the reported runs.}
 \label{tab:replication_details}
-\begin{tabular}{p{0.25\textwidth}p{0.67\textwidth}}
+\begin{tabular}{@{}p{0.24\columnwidth}p{0.68\columnwidth}@{}}
 \toprule
 Component & Setting \\
 \midrule
@@ -94,13 +143,13 @@ Reward model & SFT backbone with a scalar linear head on the last non-padding hi
 Reward calibration & Temperature scaling on validation preference pairs; fitted $T=1.554$ by minimizing Bradley--Terry negative log likelihood. \\
 MC-dropout uncertainty & Dropout applied before the scalar reward head with rate $p=0.1$; uncertainty $u$ is the standard deviation across $K=4$ stochastic forward passes. \\
 Judges & Anthropic Claude Sonnet 4.5 (\texttt{claude-sonnet-4-5-20250929}) and OpenAI \texttt{gpt-4o-mini}; both use the same 1--10 helpfulness rubric and single-number response format. OpenAI temperature is 0.2; Anthropic temperature is left at the API default. API-level seeds are not controlled. \\
-Stress-test rollouts & 64 prompts per checkpoint; sampled generation with nucleus sampling; aggressive PPO uses $\beta_{\mathrm{KL}}=0$ and checkpoints through step 1200. \\
+Stress-test rollouts & 64 prompts per checkpoint; sampled generation with nucleus sampling; the aggressive PPO stress condition uses $\beta_{\mathrm{KL}}=0$ and checkpoints through step 1200. Positive-KL PPO runs are trained separately as regularized baselines. \\
 Seed status & The stress-test tables use seed 42 and paired row-level comparisons; independent multi-seed replication is required for population-level estimates. \\
 \bottomrule
 \end{tabular}
-\end{table*}
+\end{table}
 
-\begin{table}[t]
+\begin{table}[!tbp]
 \centering
 \scriptsize
 \caption{External judge configuration. Both judges receive the generated assistant reply and return a single helpfulness score in $[1,10]$.}
@@ -116,30 +165,30 @@ OpenAI & \texttt{gpt-4o-mini} & 0.2 & Rate helpfulness 1--10; single number only
 \end{tabular}}
 \end{table}
 
-\begin{table*}[t]
+\begin{table}[!tbp]
 \centering
-\scriptsize
+\tiny
 \caption{Algorithmic summary of the reward-hacking and mitigation experiment.}
 \label{alg:main}
-\begin{tabular}{p{0.06\textwidth}p{0.88\textwidth}}
+\begin{tabular}{@{}p{0.08\columnwidth}p{0.84\columnwidth}@{}}
 \toprule
 Step & Procedure \\
 \midrule
 1 & Train SFT policy $\pi_0$ and a preference reward model $\Rphi$; calibrate reward scores by validation temperature scaling. \\
 2 & Train DPO as a non-RL preference-optimization baseline. \\
-3 & Run aggressive PPO with $\beta_{\mathrm{KL}}=0$ and sampled rollouts to induce reward-model overoptimization. \\
+3 & Train PPO under a KL-penalty sweep, including a no-KL stress condition ($\beta_{\mathrm{KL}}=0$) designed to induce reward-model overoptimization and positive-KL runs used as regularized baselines. \\
 4 & Evaluate checkpoints with $\Rphi$, $u$, Anthropic $\Rdag$, OpenAI $\Rtwo$, judge disagreement, and KL to $\pi_0$. \\
 5 & Detect checkpoint-level reward hacking by testing $\Delta\Rphi>0$ and $\Delta\bar R^\dagger<0$ between late checkpoints. \\
 6 & Mine row-level candidate failures and re-evaluate matched UP-PPO policies on those prompts. \\
 \bottomrule
 \end{tabular}
-\end{table*}
+\end{table}
 
 \section{Results}
 \subsection{Checkpoint-Level Reward Hacking}
 Table~\ref{tab:headline} reports the main checkpoints. The central observation is the transition from PPO step 1000 to step 1200. The reward model assigns the later checkpoint a better score, but both judges assign it worse scores. This provides direct evidence of reward hacking.
 
-\begin{table}[t]
+\begin{table}[!tbp]
 \centering
 \tiny
 \caption{Headline checkpoint results. Judge avg. is the mean of Anthropic and OpenAI.}
@@ -160,17 +209,17 @@ UP-PPO $\lambda=0.5$ late & 1200 & -0.984 & 2.484 & 2.688 & 2.586 \\
 
 Figure~\ref{fig:trajectory} makes the same point dynamically. PPO initially moves without a clear hacking pattern, but the late optimization interval separates the proxy and judge trajectories. UP-PPO $\lambda=0.1$ does not maximize $\Rphi$ as aggressively, but it retains higher judged quality.
 
-\begin{figure*}[!t]
+\begin{figure}[!tbp]
 \centering
-\includegraphics[width=0.92\textwidth]{fig1_optimization_trajectory.pdf}
+\includegraphics[width=\columnwidth]{fig1_optimization_trajectory.pdf}
 \caption{Optimization trajectory. PPO exhibits late proxy improvement with judge degradation; UP-PPO $\lambda=0.1$ sacrifices some proxy reward for better external quality.}
 \label{fig:trajectory}
-\end{figure*}
+\end{figure}
 
 \subsection{Proxy-vs-Judge Structure}
 Figure~\ref{fig:pareto} positions each checkpoint in proxy-vs-judge space. The desirable direction is upward and rightward. Reward hacking is rightward and downward. PPO step 1200 moves toward higher $\Rphi$ but lower $\bar R^\dagger$, whereas UP-PPO $\lambda=0.1$ occupies a more favorable region with better external quality. This demonstrates that reward hacking is a trajectory phenomenon rather than an endpoint property.
 
-\begin{figure}[!t]
+\begin{figure}[!tbp]
 \centering
 \includegraphics[width=\columnwidth]{fig2_proxy_judge_pareto.pdf}
 \caption{Proxy-vs-judge diagnostic. Checkpoint labels mark selected steps.}
@@ -180,7 +229,7 @@ Figure~\ref{fig:pareto} positions each checkpoint in proxy-vs-judge space. The d
 \subsection{Mined Reward-Hacking Rows}
 Figure~\ref{fig:heatmap} shows the 16 mined prompt rows. The left column confirms that $\Delta\Rphi$ is positive for these candidates. The judge columns show negative Anthropic, OpenAI, or $\bar R^\dagger$ deltas. This shows that reward hacking is localized and prompt-dependent.
 
-\begin{figure}[!t]
+\begin{figure}[!tbp]
 \centering
 \includegraphics[width=\columnwidth]{fig3_candidate_heatmap.pdf}
 \caption{Reward-hacking candidate rows. Blue indicates positive change and red indicates negative change from PPO step 1000 to step 1200.}
@@ -190,7 +239,7 @@ Figure~\ref{fig:heatmap} shows the 16 mined prompt rows. The left column confirm
 \subsection{UP-PPO Mitigation}
 Table~\ref{tab:mitigation} and Fig.~\ref{fig:mitigation} summarize mitigation on the same 16 candidate rows. The $\lambda=0.5$ setting reduces proxy reward but worsens OpenAI on average, indicating that excessive uncertainty penalization suppresses useful optimization. The $\lambda=0.1$ setting is better balanced: proxy reward decreases by $0.349$, while Anthropic, OpenAI, and $\bar R^\dagger$ all improve. On the candidate set, $\lambda=0.1$ improves $\bar R^\dagger$ on 9 rows, ties on 3, and worsens 4.
 
-\begin{table}[t]
+\begin{table}[!tbp]
 \centering
 \scriptsize
 \caption{UP-PPO mitigation on 16 PPO reward-hacking candidate rows. Values are UP-PPO minus PPO.}
@@ -205,7 +254,7 @@ $\lambda$ & $\Delta\Rphi$ & $\Delta$Anth. & $\Delta$OpenAI & $\Delta$Avg. \\
 \end{tabular}
 \end{table}
 
-\begin{figure}[!t]
+\begin{figure}[!tbp]
 \centering
 \includegraphics[width=\columnwidth]{fig4_mitigation_bars.pdf}
 \caption{Mitigation on mined candidate rows. The moderate uncertainty penalty is the strongest setting in this experiment.}
@@ -215,7 +264,7 @@ $\lambda$ & $\Delta\Rphi$ & $\Delta$Anth. & $\Delta$OpenAI & $\Delta$Avg. \\
 
 Table~\ref{tab:up_lambda01_trajectory} reports the sampled checkpoint trajectory for the aggressive UP-PPO $\lambda=0.1$ run. External quality is highest at step 600, where the two-judge mean reaches $3.395$. Subsequent checkpoints preserve an advantage over the vanilla PPO reward-hacking checkpoint but show lower judge scores, even as the learned reward remains relatively high. The trajectory therefore supports validation-based checkpoint selection as part of uncertainty-penalized optimization.
 
-\begin{table}[t]
+\begin{table}[!tbp]
 \centering
 \scriptsize
 \caption{Sampled aggressive UP-PPO $\lambda=0.1$ checkpoint trajectory over 64 rollouts. Judge avg. is the mean of Anthropic and OpenAI.}
@@ -238,7 +287,7 @@ Step & $\Rphi$ & Anth. & OpenAI & Avg. & KL \\
 \subsection{Mechanism and Selection Diagnostics}
 Table~\ref{tab:up_mechanism} examines how UP-PPO changes the mined reward-hacking rows. On average, UP-PPO $\lambda=0.1$ lowers the learned reward by $0.349$ while improving $\bar R^\dagger$ by $0.313$. The mean uncertainty change is small ($+0.024$), and uncertainty decreases on 9 of 16 rows. Thus, the mitigation signal is not a uniform shift toward lower measured uncertainty at inference. It acts as a reward-geometry change that reduces proxy reward on suspicious rows while improving external quality. The correlation between $\Delta u$ and $\Delta\bar R^\dagger$ is near zero, indicating that row-level judge improvements are not explained by uncertainty reduction alone.
 
-\begin{table}[!t]
+\begin{table}[!tbp]
 \centering
 \scriptsize
 \caption{Mechanism summary on the 16 mined rows. Values are UP-PPO $\lambda=0.1$ minus vanilla PPO at step 1200.}
@@ -261,11 +310,12 @@ The mined-row mitigation estimate is selection-sensitive because the rows were c
 \subsection{Judge Agreement and Confidence Intervals}
 Table~\ref{tab:judge_agreement} reports inter-judge agreement and uncertainty for the main 64-row evaluations. The two judges are directionally useful but not interchangeable. Agreement is weak before the hacking transition (Pearson $0.143$ at PPO step 1000) and stronger at the reward-hacking checkpoint (Pearson $0.654$ at PPO step 1200). The confidence intervals are therefore reported for the two-judge mean, which is the primary external-quality endpoint. The PPO step-1000 to step-1200 change lowers the mean from $2.988$ to $2.754$, while UP-PPO $\lambda=0.1$ at step 600 reaches $3.395$ with a wider interval because row-level scores remain heterogeneous.
 
-\begin{table*}[t]
+\begin{table}[!tbp]
 \centering
-\scriptsize
+\tiny
 \caption{Judge agreement and 95\% confidence intervals for selected 64-row evaluations. CI is computed on the per-row two-judge average.}
 \label{tab:judge_agreement}
+\resizebox{\columnwidth}{!}{%
 \begin{tabular}{lrrrrr}
 \toprule
 Condition & Judge avg. & 95\% CI & Pearson & Spearman & Mean $|\Rdag-\Rtwo|$ \\
@@ -275,14 +325,14 @@ PPO $\beta=0$, step 1200 & 2.754 & [2.464, 3.044] & 0.654 & 0.557 & 1.102 \\
 UP-PPO $\lambda=0.1$, step 600 & 3.395 & [3.038, 3.751] & 0.456 & 0.550 & 1.227 \\
 UP-PPO $\lambda=0.1$, step 1200 & 3.004 & [2.666, 3.342] & 0.424 & 0.416 & 1.258 \\
 \bottomrule
-\end{tabular}
-\end{table*}
+\end{tabular}}
+\end{table}
 
 
 \subsection{Paired Tests and Uncertainty Correlations}
 Table~\ref{tab:paired_tests} reports paired tests on the two central row-level comparisons. The PPO judge-average decline from step 1000 to step 1200 is negative on average ($-0.234$), with a paired $t$-test $p=0.113$ and Wilcoxon $p=0.052$. The mined-row UP-PPO comparison improves $\bar R^\dagger$ by $0.312$ over vanilla PPO, with paired $t$-test $p=0.116$ and Wilcoxon $p=0.101$. The mined-row result is therefore best read as a selected-failure analysis: it characterizes the failures found by the reward-hacking criterion rather than estimating an unconditional population effect.
 
-\begin{table}[t]
+\begin{table}[!tbp]
 \centering
 \scriptsize
 \caption{Paired tests for checkpoint-level judge degradation and mined-row mitigation. Deltas are after minus before.}
@@ -300,7 +350,7 @@ UP-PPO $\lambda=0.1$ vs. PPO on mined rows & 16 & 0.312 & 0.116 & 0.101 \\
 
 Table~\ref{tab:u_correlations} summarizes how MC-dropout uncertainty relates to row-level diagnostic quantities at the vanilla PPO step-1200 checkpoint. Uncertainty is significantly associated with absolute proxy--judge error (Spearman $\rho=0.262$, $p=0.037$), but it is not associated with inter-judge disagreement or with the signed judge-average change from step 1000 to step 1200. Thus, in this experiment $u$ is better interpreted as a weak indicator of proxy unreliability than as a direct predictor of the amount of judge-score degradation during PPO training.
 
-\begin{table}[t]
+\begin{table}[!tbp]
 \centering
 \scriptsize
 \caption{Correlations between MC-dropout uncertainty and row-level diagnostics at PPO step 1200.}
@@ -321,7 +371,7 @@ Judge-drop magnitude & 0.007 & 0.956 & 0.051 & 0.690 \\
 \subsection{KL-Penalty Baseline}
 Table~\ref{tab:kl_beta_baseline} compares the aggressive zero-KL PPO run against PPO runs with positive KL penalties. The result is important for interpretation: a tuned KL penalty is a strong baseline and can reduce the observed hacking. For example, $\beta_{\mathrm{KL}}=0.01$ reaches a best $\bar R^\dagger$ of $3.250$, and $\beta_{\mathrm{KL}}=0.03$ reaches $3.312$. These values exceed the aggressive PPO reward-hacking checkpoint ($2.754$), while the UP-PPO $\lambda=0.1$ trajectory reaches $3.395$ at its strongest judged checkpoint. This evidence supports UP-PPO as a complementary mitigation signal while preserving tuned KL regularization as a strong baseline. Establishing dominance over adaptive-KL PPO would require matched training budgets, checkpoint-selection rules, and multiple seeds.
 
-\begin{table}[t]
+\begin{table}[!tbp]
 \centering
 \scriptsize
 \caption{Standard PPO KL-penalty comparison. Best is selected by two-judge average among available checkpoints for each $\beta_{\mathrm{KL}}$.}
@@ -344,7 +394,7 @@ Across the standard PPO checkpoints in Table~\ref{tab:kl_beta_baseline}, approxi
 \subsection{Lambda Curve and Distributional Confounds}
 The mined-row mitigation table shows that $\lambda=0.1$ is stronger than $\lambda=0.5$ on the discovered failures. The larger 512-row sweep complements this selected-failure analysis by showing how judge quality changes across $\lambda$ values on a broader rollout slice. A separate 512-row sweep over $\lambda\in\{0,0.1,0.5,1.0\}$ is summarized in Table~\ref{tab:lambda_curve}. The absolute judge averages in this sweep are lower than the 64-row stress-test averages because the sweep uses a larger prompt set and a different rollout/evaluation slice; the table is therefore used for within-sweep trend inspection, not cross-table score comparison. Within that setting, larger uncertainty penalties do not monotonically improve judge quality, which argues for treating $\lambda$ as a tuned hyperparameter instead of as a universally increasing safety knob.
 
-\begin{table}[t]
+\begin{table}[!tbp]
 \centering
 \scriptsize
 \caption{UP-PPO lambda sweep on the 512-row rollout setting. These runs are useful for trend inspection but are not the same matched candidate-row mitigation experiment as Table~\ref{tab:mitigation}.}
@@ -363,7 +413,7 @@ $\lambda$ & Judge avg. & $\Rphi$ & $u$ & KL to SFT \\
 
 UP-PPO may also change generation length or style. Table~\ref{tab:length_confounds} reports a length diagnostic. UP-PPO $\lambda=0.1$ at step 1200 is shorter than PPO at step 1200, whereas the strongest judged UP-PPO checkpoint is longer. Because length moves in different directions across checkpoints, the mitigation result cannot be reduced to a single length-shortening effect. Entropy, repetition, and lexical diversity remain important complementary controls.
 
-\begin{table}[t]
+\begin{table}[!tbp]
 \centering
 \tiny
 \caption{Generated-response length diagnostics for selected 64-row checkpoints.}
@@ -385,7 +435,7 @@ UP-PPO $\lambda=0.1$, step 600 & 53.7 & 32.5 & 306.8 \\
 \subsection{Repetition and Lexical Diversity}
 Table~\ref{tab:diversity} reports simple generation-quality controls computed from the saved rollouts. UP-PPO $\lambda=0.1$ at step 1200 is shorter than vanilla PPO and has a lower four-gram repetition fraction (0.023 versus 0.038), while the best UP-PPO checkpoint at step 600 is longer and has the lowest repetition fraction among the listed checkpoints. These controls make a purely length- or repetition-based explanation less plausible. A complete behavioral audit would also measure entropy, toxicity, and stylistic shifts.
 
-\begin{table}[!t]
+\begin{table}[!tbp]
 \centering
 \scriptsize
 \caption{Repetition and lexical diversity controls over 64 generated rollouts. Distinct-$n$ is the ratio of unique $n$-grams to total $n$-grams; lower repeated 4-gram fraction indicates less local repetition.}
@@ -406,7 +456,7 @@ PPO $\beta=0.03$, best & 50.1 & 0.666 & 0.870 & 0.054 \\
 \subsection{MC-Dropout Sensitivity}
 Table~\ref{tab:mc_dropout_ablation} reports an exact full-model MC-dropout ablation on the fixed vanilla PPO step-1200 rollouts. This analysis changes the dropout rate and number of stochastic passes at inference time, then recomputes uncertainty $u$ and its association with absolute proxy--judge error. Increasing dropout increases the magnitude of $u$, as expected. The association with proxy--judge error is positive but weak-to-moderate: at the reported setting $(p=0.1,K=4)$, Spearman correlation is $0.052$, and increasing to $K=16$ raises it to $0.194$. Within this ablation, a higher dropout rate of $p=0.2$ at $K=4$ gives the strongest correlation, $0.290$. These results characterize MC-dropout as a useful but weakly calibrated diagnostic of proxy unreliability.
 
-\begin{table}[t]
+\begin{table}[!tbp]
 \centering
 \scriptsize
 \caption{MC-dropout ablation on fixed PPO step-1200 rollouts. $\rho(u,|\Rphi-\bar R^\dagger|)$ is Spearman correlation between uncertainty and absolute proxy--judge error. Top-10 overlap is measured against the original $(p=0.1,K=4)$ uncertainty ranking.}
@@ -428,7 +478,7 @@ Dropout $p$ & $K$ & Mean $u$ & $\rho(u,|\Rphi-\bar R^\dagger|)$ & Top-10 overlap
 
 The computational overhead of MC-dropout is linear in the number of stochastic reward-model passes. With $K=4$, each rollout reward requires four reward-model scoring passes. A local timing estimate on 8 generated texts using MPS measured 1.49 seconds for $K=1$ and 3.11 seconds for $K=4$, a $2.09\times$ wall-clock increase for the reward-scoring step. This timing excludes policy generation and external judge calls; at larger scales, batching and lighter uncertainty estimators become important for practical deployment.
 
-\begin{table}[!t]
+\begin{table}[!tbp]
 \centering
 \scriptsize
 \caption{Local MC-dropout reward-scoring overhead on 8 generated texts.}
@@ -461,7 +511,7 @@ This study has several limitations. The MC-dropout ablation, mechanism diagnosti
 \section{Conclusion}
 We demonstrate a controlled reward-hacking regime in RLHF. Under aggressive PPO, the learned reward proxy improves while Anthropic and OpenAI judgments decline. Row-level mining identifies concrete high-proxy/low-judge failures. UP-PPO with $\lambda=0.1$ improves $\bar R^\dagger$ on most mined candidates while reducing suspicious proxy reward, and its checkpoint trajectory underscores the value of validation-based selection. These results suggest that reward hacking is not inherent to RLHF, but emerges under specific optimization regimes, and can be partially mitigated with uncertainty-aware objectives.
 
-\appendix
+\clearpage
 \begin{thebibliography}{99}
 \bibitem{christiano2017deep} P. F. Christiano et al., ``Deep reinforcement learning from human preferences,'' in \emph{NeurIPS}, 2017, arXiv:1706.03741.
 \bibitem{ziegler2019fine} D. M. Ziegler et al., ``Fine-tuning language models from human preferences,'' arXiv:1909.08593, 2019.
@@ -487,12 +537,8 @@ We demonstrate a controlled reward-hacking regime in RLHF. Under aggressive PPO,
 \bibitem{hendrycks2021unsolved} D. Hendrycks et al., ``Unsolved problems in ML safety,'' arXiv:2109.13916, 2021.
 \end{thebibliography}
 
-
-\section{Code, Data, and Artifact Availability}
-The code, paper source, figures, tables, selected qualitative examples, and reproducibility notes are available at \url{https://github.com/zabahana/reward-hacking-upppo-rlhf}. The repository is private at submission time; access can be granted by the author for review and collaboration. Large model checkpoints, private API keys, virtual environments, and temporary build files are excluded from the repository; the documented pipeline supports regeneration of model artifacts and rollout results.
-
-
-
+\clearpage
+\appendix
 
 
 \section{Representative Complete Rollout Examples}
